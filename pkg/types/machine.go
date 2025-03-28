@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/fatih/structs"
+	"github.com/rayaman/go-qemu/pkg/types/accel"
+	"github.com/rayaman/go-qemu/pkg/types/boot"
 	"github.com/rayaman/go-qemu/pkg/types/numa"
 )
 
@@ -30,14 +32,14 @@ type Machine struct {
 	// Amount of memory in MB
 	Memory Memory `json:"m,omitempty"`
 	// Number of CPU cores
-	Cores          SMP       `json:"smp,omitempty"`
-	Cpu            CHIP      `json:"cpu,omitempty"`
-	Accel          Accel     `json:"accel,omitempty"`
-	Boot           Boot      `json:"boot,omitempty"`
-	Numa           numa.Numa `json:"numa,omitempty" omit:"true"`
-	MemoryPath     string    `json:"memory-path,omitempty"`
-	MemoryPrealloc Flag      `json:"memory-prealloc,omitempty"`
-	Nic            NIC       `json:"nic,omitempty"`
+	Cores          SMP         `json:"smp,omitempty"`
+	Cpu            CHIP        `json:"cpu,omitempty"`
+	Accel          accel.Accel `json:"accel,omitempty"`
+	Boot           boot.Boot   `json:"boot,omitempty"`
+	Numa           numa.Numa   `json:"numa,omitempty" omit:"true"`
+	MemoryPath     string      `json:"memory-path,omitempty"`
+	MemoryPrealloc Flag        `json:"memory-prealloc,omitempty"`
+	Nic            NIC         `json:"nic,omitempty"`
 
 	// Graphics
 	NoGraphic Flag `json:"nographic,omitempty"`
@@ -52,7 +54,16 @@ type Machine struct {
 	CDROM     string `json:"cdrom,omitempty"`
 }
 
-func (m *Machine) Expand() string {
+func remove(s []string, r string) []string {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
+func (m *Machine) Expand() []string {
 	fields := structs.Fields(m)
 	exp := []string{}
 	for _, field := range fields {
@@ -61,29 +72,30 @@ func (m *Machine) Expand() string {
 		if tag != "" {
 			if field.Kind() == reflect.Struct || field.Kind() == reflect.Interface && !field.IsZero() {
 				if omit != "" {
-					exp = append(exp, Expand(field.Value()))
+					exp = append(exp, Expand(field.Value())...)
 				} else {
-					exp = append(exp, Expand(field.Value(), tag))
+					exp = append(exp, Expand(field.Value(), tag)...)
 				}
 			} else {
 				if !field.IsZero() {
-					if strings.Contains(fmt.Sprintf("%v", field.Value()), " ") {
-						exp = append(exp, fmt.Sprintf(`-%v "%v"`, tag, field.Value()))
+					if fmt.Sprintf("%v", field.Value()) == "flag-on" {
+						exp = append(exp, "-"+tag)
 					} else {
-						exp = append(exp, fmt.Sprintf("-%v %v", tag, field.Value()))
+						exp = append(exp, "-"+tag, fmt.Sprintf("%v", field.Value()))
 					}
 				}
 			}
 		}
 	}
 
-	return strings.ReplaceAll(strings.ReplaceAll(fmt.Sprintf("qemu-system-%v %v", m.Arch, strings.Join(exp, " ")), " flag-on", ""), "  ", " ")
+	exp = remove(exp, "")
+	return exp
 }
 
-func Expand(obj any, tag ...string) string {
+func Expand(obj any, tag ...string) []string {
 	opts := []string{}
 	fields := structs.Fields(obj)
-	useSpace := false
+
 	for _, field := range fields {
 		opt := strings.ReplaceAll(field.Tag("json"), ",omitempty", "")
 		opt = strings.ReplaceAll(opt, "omitempty", "")
@@ -103,58 +115,50 @@ func Expand(obj any, tag ...string) string {
 					opts = append(opts, fmt.Sprintf("%v=%v-%v", opt, value.First, value.Last))
 				}
 			case []numa.Node:
-				useSpace = true
 				for _, node := range value {
-					opts = append(opts, "-numa "+opt+","+Expand(node))
+					opts = append(opts, "-numa", opt)
+					opts = append(opts, Expand(node)...)
 				}
 			case []numa.Dist:
-				useSpace = true
 				for _, dist := range value {
-					opts = append(opts, "-numa "+opt+","+Expand(dist))
+					opts = append(opts, "-numa", opt)
+					opts = append(opts, Expand(dist)...)
 				}
 			case []numa.CPU:
-				useSpace = true
 				for _, cpu := range value {
-					opts = append(opts, "-numa "+opt+","+Expand(cpu))
+					opts = append(opts, "-numa", opt)
+					opts = append(opts, Expand(cpu)...)
 				}
 			case []numa.HMATLB:
-				useSpace = true
 				for _, hmatlb := range value {
-					opts = append(opts, "-numa "+opt+","+Expand(hmatlb))
+					opts = append(opts, "-numa", opt)
+					opts = append(opts, Expand(hmatlb)...)
 				}
 			case []numa.HMATCache:
-				useSpace = true
 				for _, hmatcache := range value {
-					opts = append(opts, "-numa "+opt+","+Expand(hmatcache))
+					opts = append(opts, "-numa", opt)
+					opts = append(opts, Expand(hmatcache)...)
 				}
 			case Options:
-				opts = append(opts, value.ExpandOptions())
-			case []Drives:
-				opts = append(opts, fmt.Sprintf("%v=%v", opt, strings.Join(ConvertDrives(value), ",")))
+				opts = append(opts, value.ExpandOptions()...)
+			case []boot.Drives:
+				if omit == "tag" {
+					opts = append(opts, fmt.Sprintf("%v", strings.Join(boot.ConvertDrives(value), ",")))
+				} else {
+					opts = append(opts, fmt.Sprintf("%v=%v", opt, strings.Join(boot.ConvertDrives(value), ",")))
+				}
 			default:
 				if omit == "" {
-					if strings.Contains(fmt.Sprintf("%v", value), " ") {
-						opts = append(opts, fmt.Sprintf(`%v="%v"`, opt, value))
-					} else {
-						opts = append(opts, fmt.Sprintf("%v=%v", opt, value))
-					}
-				} else {
-					if strings.Contains(fmt.Sprintf("%v", value), " ") {
-						opts = append(opts, fmt.Sprintf(`"%v"`, value))
-					} else {
-						opts = append(opts, fmt.Sprintf("%v", value))
-					}
+					opts = append(opts, fmt.Sprintf("%v=%v", opt, value))
+				} else if omit == "tag" {
+					opts = append(opts, fmt.Sprintf("%v", value))
 				}
-
 			}
 		}
 	}
-	otag := ""
 	if len(tag) > 0 {
-		otag = "-" + tag[0] + " "
+		return []string{"-" + tag[0], strings.Join(opts, ",")}
+	} else {
+		return []string{strings.Join(opts, ",")}
 	}
-	if useSpace {
-		return otag + strings.Join(opts, " ")
-	}
-	return otag + strings.Join(opts, ",")
 }

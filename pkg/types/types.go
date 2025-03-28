@@ -8,10 +8,6 @@ type (
 	CompressionType string
 	Format          string
 	System          string
-	Accelerator     string
-	VMExit          string
-	Thread          string
-	KernelIrqchip   string
 	Flag            string
 )
 

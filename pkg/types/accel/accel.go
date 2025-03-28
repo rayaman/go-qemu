@@ -1,4 +1,11 @@
-package types
+package accel
+
+type (
+	VMExit        string
+	Accelerator   string
+	Thread        string
+	KernelIrqchip string
+)
 
 const (
 	KVM  Accelerator = "kvm"
@@ -22,7 +29,7 @@ const (
 )
 
 type Accel struct {
-	Accelerator Accelerator `json:"accel,omitempty"`
+	Accelerator Accelerator `json:"accel,omitempty" omit:"tag"`
 	// enable Xen integrated Intel graphics passthrough, default=off
 	IGDPassthrough *bool `json:"igd-passthru,omitempty"`
 	// controls accelerated irqchip support (default=on

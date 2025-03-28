@@ -1,4 +1,4 @@
-package types
+package boot
 
 // floppy (a), hard disk (c), CD-ROM (d), network (n)
 type Drives string
@@ -20,7 +20,7 @@ const (
 
 type Boot struct {
 	// Order of boot
-	Order []Drives `json:"order,omitempty"`
+	Order []Drives `json:"order,omitempty" omit:"tag"`
 	Once  []Drives `json:"once,omitempty"`
 	Menu  *bool    `json:"menu,omitempty"`
 	// The file's name that would be passed to bios as logo picture, if menu=on

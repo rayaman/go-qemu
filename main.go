@@ -12,8 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/melbahja/goph"
@@ -34,8 +32,7 @@ type Credentials struct {
 
 type Controller struct {
 	cancel context.CancelFunc
-	Stdout *bytes.Buffer
-	Stderr *bytes.Buffer
+	cmd    *exec.Cmd
 }
 
 func (c *Controller) Stop() {
@@ -63,41 +60,35 @@ func StartMachine(machine types.Machine) *Controller {
 	ctrl := &Controller{}
 
 	go func() {
-		command := machine.Expand()
 		ctx, cfunc := context.WithCancel(context.TODO())
 		ctrl.cancel = cfunc
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("powershell.exe", command)
-		} else {
-			cmd = exec.Command("bash", "-c", command)
-		}
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		ctrl.Stderr = &stderr
-		ctrl.Stdout = &stdout
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		cmd := exec.Command(fmt.Sprintf("qemu-system-%v", machine.Arch), machine.Expand()...)
+		fmt.Println(cmd.String())
+		cmd.Stdout = &stderr
+		cmd.Stderr = &stdout
+		ctrl.cmd = cmd
 		err := cmd.Start()
 		if err != nil {
-			panic(err)
+			fmt.Println("Error:", err)
 		}
-		fmt.Println("running...", cmd.Process.Pid)
-
-		//syscall.Kill(cmd.Process.Pid, syscall.SIGTERM)
+		go func() {
+			err := cmd.Wait()
+			if err != nil {
+				fmt.Println("Error:", err)
+			}
+			cfunc()
+		}()
 		for {
 			select {
 			case <-ctx.Done():
 				fmt.Println("Killing Process")
-				//err := KillProcess(string(machine.Arch))
-				//err := cmd.Process.Signal(syscall.SIGTERM)
 				err := cmd.Process.Kill()
 				if err != nil {
-					panic(err)
+					fmt.Println("Error:", err)
 				}
 				return
-			default:
 			}
 		}
 	}()
@@ -144,27 +135,15 @@ func main() {
 		NoGraphic: types.Set,
 		HardDiskA: `./imgs/UbuntuTest.img`,
 	}
-	// ctrl := StartMachine(machine)
-	command := machine.Expand()
-	fmt.Println(command)
-	// this works, we need to format like this
-	cmd := exec.Command("qemu-system-x86_64", "-m", "size=4096", "-smp", "cpus=4", "-accel", "accel=whpx", "-boot", "order=c,menu=off", "-nic", "tap,ifname=qemu-tap", "-nographic", "-hda", "./imgs/UbuntuTest.img")
-	cmd.Start()
+	ctrl := StartMachine(machine)
+
 	fmt.Println("Press enter to stop machine")
 	reader := bufio.NewReader(os.Stdin)
 	_, _ = reader.ReadString('\n')
-	cmd.Process.Kill()
-	// ctrl.Stop()
+
+	ctrl.Stop()
 	fmt.Println("Press enter to exit")
 	_, _ = reader.ReadString('\n')
-
-	// if errout != "" {
-	// 	panic(fmt.Errorf("%v", errout))
-	// }
-
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
 
 	// Start new ssh connection with private key.
 
