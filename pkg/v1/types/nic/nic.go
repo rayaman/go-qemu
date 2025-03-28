@@ -1,6 +1,8 @@
-package types
+package nic
 
-import "strings"
+import (
+	"strings"
+)
 
 type (
 	NICType string
@@ -21,7 +23,14 @@ type TapOptions struct {
 }
 
 func (t *TapOptions) ExpandOptions() []string {
-	return []string{"tap," + strings.Join(Expand(t), ",")}
+	opts := []string{}
+	if t.ID != "" {
+		opts = append(opts, "id="+t.ID)
+	}
+	if t.IFName != "" {
+		opts = append(opts, "ifname="+t.IFName)
+	}
+	return []string{"tap," + strings.Join(opts, ",")}
 }
 
 type BridgeOptions struct {

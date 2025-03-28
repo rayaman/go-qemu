@@ -15,9 +15,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/melbahja/goph"
-	"github.com/rayaman/go-qemu/pkg/image"
-	"github.com/rayaman/go-qemu/pkg/image/formats"
-	"github.com/rayaman/go-qemu/pkg/types"
+	"github.com/rayaman/go-qemu/pkg/v1/image"
+	"github.com/rayaman/go-qemu/pkg/v1/image/formats"
+	"github.com/rayaman/go-qemu/pkg/v1/system"
+	"github.com/rayaman/go-qemu/pkg/v1/types"
+	"github.com/rayaman/go-qemu/pkg/v1/types/accel"
+	"github.com/rayaman/go-qemu/pkg/v1/types/arch"
+	"github.com/rayaman/go-qemu/pkg/v1/types/boot"
+	"github.com/rayaman/go-qemu/pkg/v1/types/disk"
+	"github.com/rayaman/go-qemu/pkg/v1/types/memory"
+	"github.com/rayaman/go-qemu/pkg/v1/types/nic"
+	"github.com/rayaman/go-qemu/pkg/v1/types/smp"
 	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/crypto/ssh"
 )
@@ -33,10 +41,15 @@ type Credentials struct {
 type Controller struct {
 	cancel context.CancelFunc
 	cmd    *exec.Cmd
+	err    []error
 }
 
 func (c *Controller) Stop() {
 	c.cancel()
+}
+
+func (c *Controller) Errors() []error {
+	return c.err
 }
 
 func KillProcess(name string) error {
@@ -56,7 +69,7 @@ func KillProcess(name string) error {
 	return fmt.Errorf("process not found")
 }
 
-func StartMachine(machine types.Machine) *Controller {
+func StartMachine(machine system.Machine) *Controller {
 	ctrl := &Controller{}
 
 	go func() {
@@ -111,24 +124,24 @@ func main() {
 	// if err != nil {
 	// 	panic(err)
 	// }
-	machine := types.Machine{
-		Arch: types.X86_64,
-		Cores: types.SMP{
+	machine := system.Machine{
+		Arch: arch.X86_64,
+		Cores: smp.SMP{
 			Cpus: 4,
 		},
-		Boot: types.Boot{
-			Order: []types.Drives{types.HARDDISK},
+		Boot: boot.Boot{
+			Order: []boot.Drives{boot.HARDDISK},
 			Menu:  types.Off,
 		},
-		Memory: types.Memory{
+		Memory: memory.Memory{
 			Size: 4096,
 		},
-		Accel: types.Accel{
-			Accelerator: types.WHPX,
+		Accel: accel.Accel{
+			Accelerator: accel.WHPX,
 		},
-		Nic: types.NIC{
-			Type: types.TAP,
-			Options: &types.TapOptions{
+		Nic: nic.NIC{
+			Type: nic.TAP,
+			Options: &nic.TapOptions{
 				IFName: "qemu-tap",
 			},
 		},
@@ -181,7 +194,7 @@ func main() {
 	// SetUpMachine(types.GetSize(types.GB, 64))
 }
 
-func SetUpMachine(size types.Size) (*Credentials, error) {
+func SetUpMachine(size disk.Size) (*Credentials, error) {
 	machine_id := uuid.New().String()
 	private_path := filepath.Join("keys", machine_id)
 	public_path := filepath.Join("keys", machine_id+".pub")

@@ -1,4 +1,4 @@
-package types
+package smp
 
 /*
 Note: Different machines may have different subsets of the CPU topology

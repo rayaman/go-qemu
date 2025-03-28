@@ -1,4 +1,4 @@
-package types
+package utils
 
 import (
 	"fmt"
@@ -6,90 +6,24 @@ import (
 	"strings"
 
 	"github.com/fatih/structs"
-	"github.com/rayaman/go-qemu/pkg/types/accel"
-	"github.com/rayaman/go-qemu/pkg/types/boot"
-	"github.com/rayaman/go-qemu/pkg/types/numa"
+	"github.com/rayaman/go-qemu/pkg/v1/types/boot"
+	"github.com/rayaman/go-qemu/pkg/v1/types/nic"
+	"github.com/rayaman/go-qemu/pkg/v1/types/numa"
 )
 
-/*
-TODO:
--add-fd fd=fd,set=set[,opaque=opaque]
-
-	Add 'fd' to fd 'set'
-
--set group.id.arg=value
-
-	set <arg> parameter for item <id> of type <group>
-	i.e. -set drive.$id.file=/path/to/image
-
--global driver.property=value
--global driver=driver,property=property,value=value
-
-	set a global default for a driver property
-*/
-type Machine struct {
-	Arch System // The binary we use
-	// Amount of memory in MB
-	Memory Memory `json:"m,omitempty"`
-	// Number of CPU cores
-	Cores          SMP         `json:"smp,omitempty"`
-	Cpu            CHIP        `json:"cpu,omitempty"`
-	Accel          accel.Accel `json:"accel,omitempty"`
-	Boot           boot.Boot   `json:"boot,omitempty"`
-	Numa           numa.Numa   `json:"numa,omitempty" omit:"true"`
-	MemoryPath     string      `json:"memory-path,omitempty"`
-	MemoryPrealloc Flag        `json:"memory-prealloc,omitempty"`
-	Nic            NIC         `json:"nic,omitempty"`
-
-	// Graphics
-	NoGraphic Flag `json:"nographic,omitempty"`
-
-	// Block devices
-	HardDiskA string `json:"hda,omitempty"`
-	HardDiskB string `json:"hdb,omitempty"`
-	HardDiskC string `json:"hdc,omitempty"`
-	HardDiskD string `json:"hdd,omitempty"`
-	FloppyA   string `json:"fda,omitempty"`
-	FloppyB   string `json:"fdb,omitempty"`
-	CDROM     string `json:"cdrom,omitempty"`
+// converts bool to on/off format
+var SW = map[bool]string{
+	true:  "on",
+	false: "off",
 }
 
-func remove(s []string, r string) []string {
+func Remove(s []string, r string) []string {
 	for i, v := range s {
 		if v == r {
 			return append(s[:i], s[i+1:]...)
 		}
 	}
 	return s
-}
-
-func (m *Machine) Expand() []string {
-	fields := structs.Fields(m)
-	exp := []string{}
-	for _, field := range fields {
-		tag := strings.ReplaceAll(field.Tag("json"), ",omitempty", "")
-		omit := field.Tag("omit")
-		if tag != "" {
-			if field.Kind() == reflect.Struct || field.Kind() == reflect.Interface && !field.IsZero() {
-				if omit != "" {
-					exp = append(exp, Expand(field.Value())...)
-				} else {
-					exp = append(exp, Expand(field.Value(), tag)...)
-				}
-			} else {
-				if !field.IsZero() {
-					if fmt.Sprintf("%v", field.Value()) == "flag-on" {
-						exp = append(exp, "-"+tag)
-					} else {
-						exp = append(exp, "-"+tag, fmt.Sprintf("%v", field.Value()))
-					}
-				}
-			}
-		}
-	}
-
-	exp = remove(exp, "")
-	return exp
 }
 
 func Expand(obj any, tag ...string) []string {
@@ -139,7 +73,7 @@ func Expand(obj any, tag ...string) []string {
 					opts = append(opts, "-numa", opt)
 					opts = append(opts, Expand(hmatcache)...)
 				}
-			case Options:
+			case nic.Options:
 				opts = append(opts, value.ExpandOptions()...)
 			case []boot.Drives:
 				if omit == "tag" {

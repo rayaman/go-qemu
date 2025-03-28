@@ -1,7 +1,8 @@
 package formats
 
 import (
-	"github.com/rayaman/go-qemu/pkg/types"
+	"github.com/rayaman/go-qemu/pkg/v1/types"
+	"github.com/rayaman/go-qemu/pkg/v1/types/image"
 )
 
 func init() {
@@ -12,13 +13,13 @@ type QCOW2 struct {
 	// Name of the image
 	ImageName string `json:"image_name"`
 	// Determines the qcow2 version to use. compat=0.10 uses the traditional image format that can be read by any QEMU since 0.10. compat=1.1 enables image format extensions that only QEMU 1.1 and newer understand (this is the default). Amongst others, this includes zero clusters, which allow efficient copy-on-read for sparse images
-	Compat types.Compat `json:"compat,omitempty"`
+	Compat image.Compat `json:"compat,omitempty"`
 	// File name of a base image
 	BackingFile string `json:"backing_file,omitempty"`
 	// Image format of the base image
 	BackingFmt string `json:"backing_fmt,omitempty"`
 	// This option configures which compression algorithm will be used for compressed clusters on the image. Note that setting this option doesn’t yet cause the image to actually receive compressed writes. It is most commonly used with the -c option of qemu-img convert, but can also be used with the compress filter driver or backup block jobs with compression enabled.
-	CompressionType types.CompressionType `json:"compression_type,omitempty"`
+	CompressionType image.CompressionType `json:"compression_type,omitempty"`
 	/*
 		If this option is set to true, the image is encrypted with 128-bit AES-CBC.
 
@@ -38,7 +39,7 @@ type QCOW2 struct {
 	// Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster sizes can improve the image file size whereas larger cluster sizes generally provide better performance.
 	ClusterSize string `json:"cluster_size,omitempty"`
 	// Preallocation mode (allowed values: off, metadata, falloc, full). An image with preallocated metadata is initially larger but can improve performance when the image needs to grow. falloc and full preallocations are like the same options of raw format, but sets up metadata also.
-	Preallocation types.Preallocation `json:"preallocation,omitempty"`
+	Preallocation image.Preallocation `json:"preallocation,omitempty"`
 	/*
 		If this option is set to true, reference count updates are postponed with the goal of avoiding metadata I/O and improving performance. This is particularly interesting with cache=writethrough which doesn’t batch metadata updates. The tradeoff is that after a host crash, the reference count tables must be rebuilt, i.e. on the next open an (automatic) qemu-img check -r all is required, which may take some time.
 

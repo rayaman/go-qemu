@@ -1,4 +1,4 @@
-package types
+package memory
 
 /* Configure guest RAM
 Note: Some architectures might enforce a specific granularity

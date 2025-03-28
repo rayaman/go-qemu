@@ -1,4 +1,4 @@
-package types
+package disk
 
 import (
 	"math/big"

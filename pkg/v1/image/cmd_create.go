@@ -8,58 +8,13 @@ import (
 	"strings"
 
 	"github.com/abdfnx/gosh"
-	"github.com/rayaman/go-qemu/pkg/types"
+	"github.com/rayaman/go-qemu/pkg/v1/types/disk"
 )
-
-func getOptions(m map[string]string) string {
-	str := []string{}
-	for k, v := range m {
-		if len(v) > 0 {
-			str = append(str, fmt.Sprintf("%v=%v", k, v))
-		}
-	}
-	n_str := strings.Join(str, ",")
-	if len(n_str) > 0 {
-		return "-o \"" + strings.Join(str, ",") + "\" "
-	}
-	return ""
-}
-
-func getData(m map[string]string, key string) (string, bool) {
-	if d, ok := m[key]; ok {
-		delete(m, key)
-		if len(d) == 0 {
-			return "", false
-		}
-		return d, true
-	}
-	return "", false
-}
-
-func getMap(q any) map[string]string {
-	m := map[string]string{}
-	v := reflect.ValueOf(q).Elem()
-	for j := 0; j < v.NumField(); j++ { // Go through all fields of struct
-		if !v.Field(j).IsZero() {
-			index := strings.ReplaceAll(v.Type().Field(j).Tag.Get("json"), ",omitempty", "")
-			if v.Field(j).Type() == reflect.TypeOf(true) {
-				m[index] = types.SW[v.Field(j).Bool()]
-			} else {
-				m[index] = v.Field(j).String()
-			}
-		}
-	}
-	return m
-}
-
-type Options struct {
-	IsBaseImage bool `json:"is_base_image"`
-}
 
 // create [--object OBJECTDEF] [-q] [-f FMT] [-b BACKING_FILE [-F BACKING_FMT]] [-u] [-o OPTIONS] FILENAME [SIZE]
 
-// Creates an image based of the supplied image
-func Create(i Image, size types.Size, opts ...Options) error {
+// Creates an image based of the supplied image structure
+func Create(i Image, size disk.Size, opts ...Options) error {
 
 	data := getMap(i)
 
