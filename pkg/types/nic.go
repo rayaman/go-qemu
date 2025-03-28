@@ -1,8 +1,12 @@
 package types
 
+import "strings"
+
 type (
 	NICType string
 )
+
+// TODO: Implement other types user,socket,brtidge
 
 const (
 	TAP    NICType = "tap"
@@ -16,22 +20,22 @@ type TapOptions struct {
 	IFName string `json:"ifname,omitempty"`
 }
 
-func (t *TapOptions) ExpandOptions() string {
-	return Expand(t)
+func (t *TapOptions) ExpandOptions() []string {
+	return []string{"tap," + strings.Join(Expand(t), ",")}
 }
 
 type BridgeOptions struct {
 }
 
-func (b *BridgeOptions) ExpandOptions() string {
-	return ""
+func (b *BridgeOptions) ExpandOptions() []string {
+	return []string{}
 }
 
 type UserOptions struct {
 }
 
-func (u *UserOptions) ExpandOptions() string {
-	return ""
+func (u *UserOptions) ExpandOptions() []string {
+	return []string{}
 }
 
 type SocketOptions struct {
@@ -44,12 +48,12 @@ type SocketOptions struct {
 	Connect      string `json:"connect,omitempty"`
 }
 
-func (s *SocketOptions) ExpandOptions() string {
-	return Expand(s)
+func (s *SocketOptions) ExpandOptions() []string {
+	return []string{}
 }
 
 type Options interface {
-	ExpandOptions() string
+	ExpandOptions() []string
 }
 
 type NIC struct {

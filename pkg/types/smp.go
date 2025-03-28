@@ -16,7 +16,7 @@ Note: Different machines may have different subsets of the CPU topology
 */
 type SMP struct {
 	// The number of initial CPUs
-	Cpus uint `json:"cpus,omitempty"`
+	Cpus uint `json:"cpus,omitempty" omit:"tag"`
 	// Maximum number of total CPUs, including offline CPUs for hotplug, etc
 	MaxCpus uint `json:"maxcpus,omitempty"`
 	// Number of drawers on the machine board
